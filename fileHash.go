@@ -2,12 +2,19 @@ package main
 
 import (
 	"crypto/sha256"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 )
+
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `fileName`")
+var memprofile = flag.String("memprofile", "", "write memory profile to `fileName`")
 
 /*
 Create SHA-1 hash of files in passed in directory
@@ -19,15 +26,35 @@ type shaResult struct {
 	digest []byte
 }
 
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage of %s: fileHash [args] filepath\n", os.Args[0])
+	flag.PrintDefaults()
+}
+
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Println("Usage: ./test <root filepath>")
-		os.Exit(1)
+	flag.Usage = usage
+	flag.Parse()
+
+	if flag.NArg() < 1 {
+		usage()
+		log.Fatal()
+	}
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
 	}
 
 	pathList := make([]string, 0)
 
-	root := os.Args[1]
+	root := flag.Arg(0)
+
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() && !strings.Contains(path, ".git") {
 			pathList = append(pathList, path)
@@ -79,5 +106,17 @@ func main() {
 
 	for i := 0; i < NumGoRoutines; i++ {
 		<-done
+	}
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
+		f.Close()
 	}
 }
