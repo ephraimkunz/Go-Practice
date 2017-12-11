@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -42,15 +41,6 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
-	m := validPath.FindStringSubmatch(r.URL.Path)
-	if m == nil {
-		http.NotFound(w, r)
-		return "", errors.New("Invalid Page Title")
-	}
-	return m[2], nil
 }
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
@@ -94,9 +84,14 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/view/FrontPage", http.StatusFound)
+}
+
 func main() {
 	http.HandleFunc("/view/", makeHandler(viewHandler))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
 	http.HandleFunc("/save/", makeHandler(saveHandler))
+	http.HandleFunc("/", rootHandler)
 	http.ListenAndServe(":8080", nil)
 }
