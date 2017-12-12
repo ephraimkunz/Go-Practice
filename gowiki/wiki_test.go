@@ -1,9 +1,20 @@
 package main
 
 import (
+	"os"
 	"reflect"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	results := m.Run()
+	teardown()
+	os.Exit(results)
+}
+
+func teardown() {
+	os.Remove("data/TestPage.txt")
+}
 
 func Test_saveAndLoad(t *testing.T) {
 	t.Run("Test that load and store works", func(t *testing.T) {
