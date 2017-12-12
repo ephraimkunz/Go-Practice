@@ -16,7 +16,7 @@ func Test_saveAndLoad(t *testing.T) {
 
 		pageLoaded, err := loadPage(page.Title)
 		if err != nil || !reflect.DeepEqual(page, pageLoaded) {
-			t.Errorf("Error: %v\nSaved: %v\nRead: %v", page, pageLoaded)
+			t.Errorf("Error: %v\nSaved: %v\nRead: %v", err, page, pageLoaded)
 		}
 	})
 }

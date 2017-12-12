@@ -1,19 +1,48 @@
 package main
 
 import (
+	"encoding/json"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"strconv"
+	"strings"
 )
 
+/*
+Page represents a wiki page
+*/
 type Page struct {
 	Title string
 	Body  []byte
 }
 
+/*
+User for RESTful API
+*/
+type User struct {
+	UserID    int    `json:"user_id,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
+}
+
+/*
+UserError for RESTful API
+*/
+type UserError struct {
+	Code        int    `json:"code,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
 const dataDirectory = "data/"
 const templateDirectory = "tmpl/"
+
+var users = map[int]User{
+	1: User{1, "Ephraim", "Kunz"},
+	2: User{2, "Megan", "Kunz"},
+	3: User{3, "Charity", "Gifford"},
+}
 
 var templates = template.Must(template.ParseFiles(
 	templateDirectory+"edit.html",
@@ -84,6 +113,26 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
+func dataHandler(w http.ResponseWriter, r *http.Request) {
+	pieces := strings.Split(r.URL.Path, "/")
+	id, err := strconv.Atoi(pieces[len(pieces)-1])
+
+	if err != nil {
+		error, _ := json.Marshal(UserError{http.StatusNotFound, "Invalid id"})
+		http.Error(w, string(error), http.StatusNotFound)
+		return
+	}
+	user, found := users[id]
+	if !found {
+		error, _ := json.Marshal(UserError{http.StatusNotFound, "No user with id " + strconv.Itoa(id)})
+		http.Error(w, string(error), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/view/FrontPage", http.StatusFound)
 }
@@ -92,6 +141,7 @@ func main() {
 	http.HandleFunc("/view/", makeHandler(viewHandler))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
 	http.HandleFunc("/save/", makeHandler(saveHandler))
+	http.HandleFunc("/data/", dataHandler)
 	http.HandleFunc("/", rootHandler)
 	http.Handle("/resources/", http.StripPrefix("/resources/", http.FileServer(http.Dir("resources"))))
 	http.ListenAndServe(":8080", nil)
